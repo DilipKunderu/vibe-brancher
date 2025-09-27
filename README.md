@@ -162,6 +162,20 @@ Automated test version (no user input required):
 python3 test_demo.py
 ```
 
+### Enhanced Demo (NEW!)
+Comprehensive demo showcasing auto-commit features:
+
+```bash
+# Full interactive enhanced demo
+./run_enhanced_demo.sh
+
+# Quick automated test
+python3 quick_enhanced_demo.py
+
+# Direct execution
+python3 enhanced_demo.py
+```
+
 ### Basic Demo
 The original demo script:
 
