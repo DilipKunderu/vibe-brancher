@@ -84,17 +84,19 @@ class EnhancedDemo:
         return self.run_command(command, capture)
     
     def start_visualizer_api(self):
-        """Start the visualizer API in watch mode"""
+        """Start the visualizer API web server on port 7171"""
         try:
-            self.print_step("Starting visualizer API...", "🌐")
+            self.print_step("Starting visualizer API web server...", "🌐")
             self.visualizer_process = subprocess.Popen(
-                ['python3', self.visualizer_api_path, '--watch'],
+                ['python3', self.visualizer_api_path, '--server', '--port', '7171'],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True
             )
-            time.sleep(1)  # Give it time to start
-            self.print_success("Visualizer API started! (Running in background)")
+            time.sleep(2)  # Give it time to start
+            self.print_success("Visualizer API web server started on http://localhost:7171!")
+            self.print_success("🌐 Web Interface: http://localhost:7171")
+            self.print_success("🔗 API Endpoints: /api/git-data, /api/branches, /api/health")
         except Exception as e:
             self.print_warning(f"Could not start visualizer API: {e}")
     
