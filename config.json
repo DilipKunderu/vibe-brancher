@@ -1,0 +1,42 @@
+{
+  "thresholds": {
+    "files_changed": 5,
+    "lines_added": 50,
+    "lines_removed": 30,
+    "time_minutes": 30,
+    "complexity_score": 7
+  },
+  "weights": {
+    "files_changed": 0.3,
+    "lines_changed": 0.25,
+    "time_factor": 0.2,
+    "complexity": 0.15,
+    "file_types": 0.1
+  },
+  "file_type_weights": {
+    ".py": 1.0,
+    ".js": 0.8,
+    ".ts": 0.9,
+    ".java": 1.0,
+    ".cpp": 1.0,
+    ".c": 1.0,
+    ".go": 1.0,
+    ".rs": 1.0,
+    ".html": 0.3,
+    ".css": 0.3,
+    ".json": 0.2,
+    ".md": 0.1,
+    ".txt": 0.1,
+    ".yml": 0.4,
+    ".yaml": 0.4,
+    ".xml": 0.3,
+    ".sql": 0.7,
+    ".sh": 0.6,
+    ".bat": 0.6
+  },
+  "branch_naming": {
+    "prefix": "feature",
+    "separator": "/",
+    "include_timestamp": false
+  }
+}

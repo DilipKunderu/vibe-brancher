@@ -1,0 +1,164 @@
+# Git Vibe Brancher 🌿
+
+A smart tool that analyzes your coding session and suggests when to create a new git branch during "vibe coding" (informal, exploratory development).
+
+## Features
+
+- **Intelligent Analysis**: Considers multiple factors to determine when to branch:
+  - Number of files changed
+  - Lines of code added/removed
+  - Time since last commit
+  - Complexity of changes
+  - File types being modified
+
+- **Configurable Thresholds**: Customize the tool's sensitivity through a JSON config file
+- **Smart Branch Naming**: Suggests meaningful branch names based on your changes
+- **Git Integration**: Seamlessly works with your existing git workflow
+
+## Installation
+
+1. Clone or download this repository
+2. Make the script executable: `chmod +x vibe_brancher.py`
+3. Optionally, add to your PATH for global access
+
+## Usage
+
+### Basic Analysis
+```bash
+./vibe_brancher.py
+```
+
+### Detailed Analysis
+```bash
+./vibe_brancher.py --verbose
+```
+
+### Auto-create Branch
+```bash
+./vibe_brancher.py --create
+```
+
+### Custom Branch Name
+```bash
+./vibe_brancher.py --create --name "feature/my-awesome-feature"
+```
+
+### Custom Configuration
+```bash
+./vibe_brancher.py --config /path/to/your/config.json
+```
+
+## Configuration
+
+The tool uses `config.json` to customize its behavior. Key settings:
+
+### Thresholds
+- `files_changed`: Number of files that trigger branching consideration (default: 5)
+- `lines_added`: Lines added threshold (default: 50)
+- `lines_removed`: Lines removed threshold (default: 30)
+- `time_minutes`: Minutes since last commit (default: 30)
+- `complexity_score`: Complexity score threshold (default: 7)
+
+### Weights
+Control how much each factor influences the branching decision:
+- `files_changed`: Weight for file count factor (default: 0.3)
+- `lines_changed`: Weight for line changes (default: 0.25)
+- `time_factor`: Weight for time since last commit (default: 0.2)
+- `complexity`: Weight for complexity score (default: 0.15)
+- `file_types`: Weight for file type complexity (default: 0.1)
+
+### File Type Weights
+Different file types have different complexity weights:
+- Source code files (.py, .js, .java, etc.): Higher weights (0.8-1.0)
+- Configuration files (.json, .yml): Medium weights (0.2-0.4)
+- Documentation (.md, .txt): Lower weights (0.1)
+
+## How It Works
+
+The tool calculates a "branch score" (0.0 to 1.0) based on:
+
+1. **File Count Factor**: More files = higher score
+2. **Line Change Factor**: More additions/deletions = higher score
+3. **Time Factor**: Longer since last commit = higher score
+4. **Complexity Factor**: Based on file types and change patterns
+5. **File Type Factor**: Different file types have different weights
+
+If the final score is ≥ 0.6, the tool recommends creating a new branch.
+
+## Examples
+
+### Scenario 1: Small Changes
+```
+🔍 Git Vibe Brancher Analysis
+========================================
+⏳ RECOMMENDATION: Continue on current branch
+📊 Branch Score: 0.25/1.0
+```
+
+### Scenario 2: Significant Changes
+```
+🔍 Git Vibe Brancher Analysis
+========================================
+🌿 RECOMMENDATION: Create a new branch!
+📊 Branch Score: 0.78/1.0
+
+💡 Suggested branch name: feature/user-authentication
+```
+
+## Demo & Examples
+
+### Immersive Demo
+Experience the full power of Git Vibe Brancher with our comprehensive demo:
+
+```bash
+# Run the immersive demo (5-10 minutes)
+./run_demo.sh
+
+# Or run the Python demo directly
+python3 immersive_demo.py
+```
+
+The immersive demo includes:
+- 6 realistic coding scenarios
+- Interactive decision-making process
+- Visual enhancements and animations
+- Custom configuration examples
+- Integration ideas and best practices
+
+### Quick Demo
+For a fast overview of key features:
+
+```bash
+python3 quick_demo.py
+```
+
+### Test Demo
+Automated test version (no user input required):
+
+```bash
+python3 test_demo.py
+```
+
+### Basic Demo
+The original demo script:
+
+```bash
+./demo.sh
+```
+
+## Integration Ideas
+
+- Add to your shell prompt to show branch recommendations
+- Use in pre-commit hooks
+- Integrate with your IDE or editor
+- Set up as a git alias: `git config --global alias.vibe '!./path/to/vibe_brancher.py'`
+
+## Requirements
+
+- Python 3.6+
+- Git repository
+- No additional Python packages required (uses only standard library)
+
+## License
+
+MIT License - feel free to modify and distribute!
