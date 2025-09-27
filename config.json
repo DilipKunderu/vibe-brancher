@@ -38,5 +38,19 @@
     "prefix": "feature",
     "separator": "/",
     "include_timestamp": false
+  },
+  "auto_commit": {
+    "enabled": true,
+    "interactive_by_default": false,
+    "commit_message_templates": {
+      "feat": "feat: {description}",
+      "fix": "fix: {description}",
+      "docs": "docs: {description}",
+      "config": "config: {description}",
+      "script": "script: {description}",
+      "update": "update: {description}"
+    },
+    "include_statistics": true,
+    "max_files_display": 5
   }
 }

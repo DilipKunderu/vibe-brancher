@@ -1,0 +1,61 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Vibe Brancher: Quick Analysis",
+            "type": "shell",
+            "command": "python3",
+            "args": ["/Users/dilipkunderu/git-vibe-brancher/vibe_brancher.py"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Vibe Brancher: Detailed Analysis",
+            "type": "shell",
+            "command": "python3",
+            "args": ["/Users/dilipkunderu/git-vibe-brancher/vibe_brancher.py", "--verbose"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Vibe Brancher: Create Branch",
+            "type": "shell",
+            "command": "python3",
+            "args": ["/Users/dilipkunderu/git-vibe-brancher/vibe_brancher.py", "--create"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Vibe Brancher: With Custom Config",
+            "type": "shell",
+            "command": "python3",
+            "args": ["/Users/dilipkunderu/git-vibe-brancher/vibe_brancher.py", "--config", ".vibe-brancher-config.json", "--verbose"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        }
+    ]
+}

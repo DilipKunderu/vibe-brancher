@@ -43,6 +43,21 @@ A smart tool that analyzes your coding session and suggests when to create a new
 ./vibe_brancher.py --create --name "feature/my-awesome-feature"
 ```
 
+### Auto-Commit Changes (NEW!)
+```bash
+# Auto-commit with intelligent message generation
+./vibe_brancher.py --commit
+
+# Interactive auto-commit (shows files and asks for confirmation)
+./vibe_brancher.py --commit --interactive
+
+# Vibe coding commit (analyze + suggest branching + auto-commit)
+./vibe_brancher.py --vibe-commit
+
+# Custom commit message
+./vibe_brancher.py --commit --message "Your custom message"
+```
+
 ### Custom Configuration
 ```bash
 ./vibe_brancher.py --config /path/to/your/config.json
@@ -72,6 +87,14 @@ Different file types have different complexity weights:
 - Source code files (.py, .js, .java, etc.): Higher weights (0.8-1.0)
 - Configuration files (.json, .yml): Medium weights (0.2-0.4)
 - Documentation (.md, .txt): Lower weights (0.1)
+
+### Auto-Commit Settings (NEW!)
+Control automatic commit behavior:
+- `enabled`: Enable/disable auto-commit functionality
+- `interactive_by_default`: Use interactive mode by default
+- `commit_message_templates`: Customize commit message formats
+- `include_statistics`: Include line count statistics in messages
+- `max_files_display`: Maximum files to show in interactive mode
 
 ## How It Works
 
@@ -146,11 +169,28 @@ The original demo script:
 ./demo.sh
 ```
 
+## Git Aliases
+
+Set up convenient git aliases for easy access:
+
+```bash
+# Analysis aliases
+git config --global alias.vibe '!python3 /path/to/vibe_brancher.py'
+git config --global alias.vibe-verbose '!python3 /path/to/vibe_brancher.py --verbose'
+git config --global alias.vibe-create '!python3 /path/to/vibe_brancher.py --create'
+
+# Auto-commit aliases (NEW!)
+git config --global alias.auto-commit '!python3 /path/to/vibe_brancher.py --commit'
+git config --global alias.vibe-commit '!python3 /path/to/vibe_brancher.py --vibe-commit'
+git config --global alias.vibe-commit-interactive '!python3 /path/to/vibe_brancher.py --vibe-commit --interactive'
+```
+
 ## Integration Ideas
 
 - Add to your shell prompt to show branch recommendations
 - Use in pre-commit hooks
 - Integrate with your IDE or editor
+- Use auto-commit for frequent commits during vibe coding
 - Set up as a git alias: `git config --global alias.vibe '!./path/to/vibe_brancher.py'`
 
 ## Requirements

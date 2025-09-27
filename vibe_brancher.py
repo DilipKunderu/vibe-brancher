@@ -62,6 +62,20 @@ class GitVibeBrancher:
                 "prefix": "feature",
                 "separator": "/",
                 "include_timestamp": False
+            },
+            "auto_commit": {
+                "enabled": True,
+                "interactive_by_default": False,
+                "commit_message_templates": {
+                    "feat": "feat: {description}",
+                    "fix": "fix: {description}",
+                    "docs": "docs: {description}",
+                    "config": "config: {description}",
+                    "script": "script: {description}",
+                    "update": "update: {description}"
+                },
+                "include_statistics": True,
+                "max_files_display": 5
             }
         }
         
@@ -330,6 +344,159 @@ class GitVibeBrancher:
             print(f"❌ Failed to create branch: {e}")
             return False
     
+    def _generate_commit_message(self, files: Dict, diff_stats: Dict) -> str:
+        """Generate an intelligent commit message based on the changes."""
+        total_files = len(files['modified']) + len(files['added']) + len(files['untracked'])
+        total_insertions = diff_stats['staged']['insertions'] + diff_stats['unstaged']['insertions']
+        total_deletions = diff_stats['staged']['deletions'] + diff_stats['unstaged']['deletions']
+        
+        # Analyze file types to determine the nature of changes
+        all_files = files['modified'] + files['added'] + files['untracked']
+        file_types = {}
+        for filename in all_files:
+            ext = Path(filename).suffix.lower()
+            file_types[ext] = file_types.get(ext, 0) + 1
+        
+        # Determine the type of change
+        if file_types.get('.py', 0) > 0 or file_types.get('.java', 0) > 0 or file_types.get('.js', 0) > 0:
+            change_type = "feat"
+        elif file_types.get('.md', 0) > 0 or file_types.get('.txt', 0) > 0:
+            change_type = "docs"
+        elif file_types.get('.json', 0) > 0 or file_types.get('.yml', 0) > 0 or file_types.get('.yaml', 0) > 0:
+            change_type = "config"
+        elif file_types.get('.sh', 0) > 0 or file_types.get('.bat', 0) > 0:
+            change_type = "script"
+        else:
+            change_type = "update"
+        
+        # Generate descriptive message using config templates
+        templates = self.config.get('auto_commit', {}).get('commit_message_templates', {})
+        template = templates.get(change_type, f"{change_type}: {{description}}")
+        
+        if total_files == 1:
+            main_file = all_files[0]
+            file_name = Path(main_file).stem
+            if change_type == "feat":
+                description = f"add {file_name} functionality"
+            elif change_type == "docs":
+                description = f"update {file_name} documentation"
+            elif change_type == "config":
+                description = f"update {file_name} configuration"
+            else:
+                description = f"update {file_name}"
+        else:
+            if change_type == "feat":
+                description = f"add {total_files} files with new functionality"
+            elif change_type == "docs":
+                description = f"update {total_files} documentation files"
+            elif change_type == "config":
+                description = f"update {total_files} configuration files"
+            else:
+                description = f"update {total_files} files"
+        
+        message = template.format(description=description)
+        
+        # Add statistics if enabled
+        if self.config.get('auto_commit', {}).get('include_statistics', True):
+            if total_insertions > 0 or total_deletions > 0:
+                if total_deletions == 0:
+                    message += f" (+{total_insertions} lines)"
+                elif total_insertions == 0:
+                    message += f" (-{total_deletions} lines)"
+                else:
+                    message += f" (+{total_insertions}, -{total_deletions} lines)"
+        
+        return message
+    
+    def auto_commit(self, message: Optional[str] = None, interactive: bool = False) -> bool:
+        """Automatically commit current changes with intelligent message generation."""
+        try:
+            # Get current status
+            files = self._get_git_status()
+            diff_stats = self._get_diff_stats()
+            
+            # Check if there are any changes to commit
+            total_files = len(files['modified']) + len(files['added']) + len(files['untracked'])
+            if total_files == 0:
+                print("📝 No changes to commit.")
+                return True
+            
+            # Generate commit message if not provided
+            if not message:
+                message = self._generate_commit_message(files, diff_stats)
+            
+            # Show what will be committed
+            print(f"📝 Preparing to commit {total_files} files...")
+            print(f"💬 Commit message: {message}")
+            
+            if interactive:
+                # Show file changes
+                max_files = self.config.get('auto_commit', {}).get('max_files_display', 5)
+                print("\n📁 Files to be committed:")
+                if files['modified']:
+                    print(f"  • Modified: {len(files['modified'])} files")
+                    for f in files['modified'][:max_files]:
+                        print(f"    - {f}")
+                    if len(files['modified']) > max_files:
+                        print(f"    ... and {len(files['modified']) - max_files} more")
+                
+                if files['added']:
+                    print(f"  • Added: {len(files['added'])} files")
+                    for f in files['added'][:max_files]:
+                        print(f"    - {f}")
+                    if len(files['added']) > max_files:
+                        print(f"    ... and {len(files['added']) - max_files} more")
+                
+                if files['untracked']:
+                    print(f"  • Untracked: {len(files['untracked'])} files")
+                    for f in files['untracked'][:max_files]:
+                        print(f"    - {f}")
+                    if len(files['untracked']) > max_files:
+                        print(f"    ... and {len(files['untracked']) - max_files} more")
+                
+                # Ask for confirmation
+                response = input(f"\n🤔 Proceed with commit? (y/N): ").strip().lower()
+                if response not in ['y', 'yes']:
+                    print("❌ Commit cancelled.")
+                    return False
+            
+            # Stage all changes
+            self._run_git_command(['add', '.'])
+            
+            # Create commit
+            self._run_git_command(['commit', '-m', message])
+            print(f"✅ Committed changes: {message}")
+            return True
+            
+        except RuntimeError as e:
+            print(f"❌ Failed to commit: {e}")
+            return False
+    
+    def vibe_commit(self, interactive: bool = False) -> bool:
+        """Vibe coding commit - analyze and commit with smart message."""
+        try:
+            # First analyze if we should branch
+            analysis = self.analyze_branch_need()
+            
+            # Show analysis
+            self.show_analysis(analysis, verbose=False)
+            
+            # If we should branch, suggest it
+            if analysis['should_branch']:
+                suggested_branch = self.suggest_branch_name(analysis)
+                print(f"\n🌿 Consider creating a branch: {suggested_branch}")
+                if interactive:
+                    response = input("Create branch before committing? (y/N): ").strip().lower()
+                    if response in ['y', 'yes']:
+                        self.create_branch(suggested_branch)
+            
+            # Proceed with commit
+            return self.auto_commit(interactive=interactive)
+            
+        except RuntimeError as e:
+            print(f"❌ Failed to vibe commit: {e}")
+            return False
+    
     def show_analysis(self, analysis: Dict, verbose: bool = False):
         """Display the analysis results."""
         print("🔍 Git Vibe Brancher Analysis")
@@ -368,25 +535,44 @@ class GitVibeBrancher:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Git Vibe Brancher - Decide when to create branches")
+    parser = argparse.ArgumentParser(description="Git Vibe Brancher - Decide when to create branches and auto-commit changes")
     parser.add_argument('--create', action='store_true', help='Automatically create branch if recommended')
     parser.add_argument('--verbose', '-v', action='store_true', help='Show detailed analysis')
     parser.add_argument('--config', help='Path to configuration file')
     parser.add_argument('--name', help='Custom branch name (overrides suggestion)')
     
+    # New auto-commit options
+    parser.add_argument('--commit', action='store_true', help='Auto-commit current changes with intelligent message')
+    parser.add_argument('--vibe-commit', action='store_true', help='Vibe coding commit - analyze, suggest branching, and commit')
+    parser.add_argument('--interactive', '-i', action='store_true', help='Interactive mode for commits (ask for confirmation)')
+    parser.add_argument('--message', '-m', help='Custom commit message (overrides auto-generation)')
+    
     args = parser.parse_args()
     
     try:
         brancher = GitVibeBrancher(args.config)
-        analysis = brancher.analyze_branch_need()
         
-        brancher.show_analysis(analysis, args.verbose)
-        
-        if args.create and analysis['should_branch']:
-            branch_name = args.name or brancher.suggest_branch_name(analysis)
-            brancher.create_branch(branch_name)
-        elif args.create and not analysis['should_branch']:
-            print("\n⚠️  Branch creation not recommended based on current analysis.")
+        # Handle auto-commit modes
+        if args.vibe_commit:
+            # Vibe coding commit - analyze and commit
+            success = brancher.vibe_commit(interactive=args.interactive)
+            if not success:
+                sys.exit(1)
+        elif args.commit:
+            # Simple auto-commit
+            success = brancher.auto_commit(message=args.message, interactive=args.interactive)
+            if not success:
+                sys.exit(1)
+        else:
+            # Original analysis mode
+            analysis = brancher.analyze_branch_need()
+            brancher.show_analysis(analysis, args.verbose)
+            
+            if args.create and analysis['should_branch']:
+                branch_name = args.name or brancher.suggest_branch_name(analysis)
+                brancher.create_branch(branch_name)
+            elif args.create and not analysis['should_branch']:
+                print("\n⚠️  Branch creation not recommended based on current analysis.")
             
     except RuntimeError as e:
         print(f"❌ Error: {e}")
