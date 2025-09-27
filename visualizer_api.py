@@ -9,10 +9,17 @@ import sys
 import subprocess
 import json
 import time
+import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 import argparse
+
+try:
+    from flask import Flask, jsonify, request
+    FLASK_AVAILABLE = True
+except ImportError:
+    FLASK_AVAILABLE = False
 
 class VisualizerAPI:
     def __init__(self, repo_path: Optional[str] = None):
@@ -253,17 +260,210 @@ class VisualizerAPI:
                 print(f"Error watching repository: {e}")
                 time.sleep(5)
 
+def create_flask_app(api: VisualizerAPI):
+    """Create Flask web application for the visualizer API"""
+    if not FLASK_AVAILABLE:
+        raise ImportError("Flask is required for web server mode. Install with: pip install flask")
+    
+    app = Flask(__name__)
+    
+    @app.route('/')
+    def index():
+        """Serve a simple HTML page with API information"""
+        return '''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Git Vibe Brancher - Visualizer API</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+                .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }
+                .endpoint { background: #ecf0f1; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #3498db; }
+                .method { background: #27ae60; color: white; padding: 2px 8px; border-radius: 3px; font-size: 12px; font-weight: bold; }
+                .url { font-family: monospace; background: #34495e; color: #ecf0f1; padding: 5px 10px; border-radius: 3px; }
+                .description { margin-top: 10px; color: #7f8c8d; }
+                .status { background: #e8f5e8; border: 1px solid #27ae60; padding: 10px; border-radius: 5px; margin: 20px 0; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>🌿 Git Vibe Brancher - Visualizer API</h1>
+                
+                <div class="status">
+                    <strong>✅ API Server Running</strong><br>
+                    Repository: <strong>{}</strong><br>
+                    Current Branch: <strong>{}</strong>
+                </div>
+                
+                <h2>Available Endpoints</h2>
+                
+                <div class="endpoint">
+                    <span class="method">GET</span> <span class="url">/api/git-data</span>
+                    <div class="description">Get current git repository data in JSON format</div>
+                </div>
+                
+                <div class="endpoint">
+                    <span class="method">GET</span> <span class="url">/api/branches</span>
+                    <div class="description">Get list of all branches with metadata</div>
+                </div>
+                
+                <div class="endpoint">
+                    <span class="method">GET</span> <span class="url">/api/current-branch</span>
+                    <div class="description">Get current branch information</div>
+                </div>
+                
+                <div class="endpoint">
+                    <span class="method">GET</span> <span class="url">/api/stats</span>
+                    <div class="description">Get repository statistics</div>
+                </div>
+                
+                <div class="endpoint">
+                    <span class="method">GET</span> <span class="url">/api/health</span>
+                    <div class="description">Health check endpoint</div>
+                </div>
+                
+                <h2>Usage Examples</h2>
+                <p><strong>JavaScript/Fetch:</strong></p>
+                <pre style="background: #2c3e50; color: #ecf0f1; padding: 15px; border-radius: 5px; overflow-x: auto;">
+fetch('/api/git-data')
+  .then(response => response.json())
+  .then(data => console.log(data));</pre>
+                
+                <p><strong>cURL:</strong></p>
+                <pre style="background: #2c3e50; color: #ecf0f1; padding: 15px; border-radius: 5px; overflow-x: auto;">
+curl http://localhost:7171/api/git-data</pre>
+                
+                <p><strong>Python:</strong></p>
+                <pre style="background: #2c3e50; color: #ecf0f1; padding: 15px; border-radius: 5px; overflow-x: auto;">
+import requests
+response = requests.get('http://localhost:7171/api/git-data')
+data = response.json()</pre>
+            </div>
+        </body>
+        </html>
+        '''.format(api.repo_path, api._get_current_branch())
+    
+    @app.route('/api/git-data')
+    def get_git_data():
+        """Get complete git repository data"""
+        try:
+            data = api.get_session_data()
+            return jsonify(data)
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route('/api/branches')
+    def get_branches():
+        """Get list of all branches"""
+        try:
+            data = api.get_session_data()
+            return jsonify({
+                'branches': data['branches'],
+                'currentBranch': data['currentBranch'],
+                'totalBranches': data['totalBranches']
+            })
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route('/api/current-branch')
+    def get_current_branch():
+        """Get current branch information"""
+        try:
+            current_branch = api._get_current_branch()
+            data = api.get_session_data()
+            current_branch_data = next(
+                (branch for branch in data['branches'] if branch['name'] == current_branch), 
+                None
+            )
+            return jsonify({
+                'currentBranch': current_branch,
+                'branchData': current_branch_data
+            })
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route('/api/stats')
+    def get_stats():
+        """Get repository statistics"""
+        try:
+            data = api.get_session_data()
+            return jsonify({
+                'totalBranches': data['totalBranches'],
+                'totalCommits': data['totalCommits'],
+                'totalFilesChanged': data['totalFilesChanged'],
+                'sessionId': data['sessionId'],
+                'startTime': data['startTime']
+            })
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route('/api/health')
+    def health_check():
+        """Health check endpoint"""
+        try:
+            # Try to get basic git info to verify everything is working
+            current_branch = api._get_current_branch()
+            return jsonify({
+                'status': 'healthy',
+                'repository': api.repo_path,
+                'currentBranch': current_branch,
+                'timestamp': datetime.now().isoformat()
+            })
+        except Exception as e:
+            return jsonify({
+                'status': 'unhealthy',
+                'error': str(e),
+                'timestamp': datetime.now().isoformat()
+            }), 500
+    
+    return app
+
+def run_web_server(api: VisualizerAPI, port: int = 7171, host: str = 'localhost'):
+    """Run the Flask web server"""
+    if not FLASK_AVAILABLE:
+        print("❌ Flask is required for web server mode.")
+        print("Install with: pip install flask")
+        sys.exit(1)
+    
+    app = create_flask_app(api)
+    
+    print(f"🌐 Starting Git Vibe Brancher Visualizer API on http://{host}:{port}")
+    print(f"📁 Repository: {api.repo_path}")
+    print(f"🌿 Current Branch: {api._get_current_branch()}")
+    print(f"🔗 API Endpoints:")
+    print(f"   • http://{host}:{port}/api/git-data")
+    print(f"   • http://{host}:{port}/api/branches")
+    print(f"   • http://{host}:{port}/api/current-branch")
+    print(f"   • http://{host}:{port}/api/stats")
+    print(f"   • http://{host}:{port}/api/health")
+    print(f"🌐 Web Interface: http://{host}:{port}")
+    print(f"⏹️  Press Ctrl+C to stop the server")
+    
+    try:
+        app.run(host=host, port=port, debug=False, threaded=True)
+    except KeyboardInterrupt:
+        print(f"\n🛑 Server stopped")
+    except Exception as e:
+        print(f"❌ Server error: {e}")
+
 def main():
     parser = argparse.ArgumentParser(description="Git Vibe Brancher Visualizer API")
     parser.add_argument('--repo', help='Path to git repository')
     parser.add_argument('--watch', action='store_true', help='Watch repository for changes')
     parser.add_argument('--json', action='store_true', help='Output JSON data')
+    parser.add_argument('--server', action='store_true', help='Start web server on port 7171')
+    parser.add_argument('--port', type=int, default=7171, help='Port for web server (default: 7171)')
+    parser.add_argument('--host', default='localhost', help='Host for web server (default: localhost)')
     
     args = parser.parse_args()
     
     api = VisualizerAPI(args.repo)
     
-    if args.watch:
+    if args.server:
+        # Start web server mode
+        run_web_server(api, port=args.port, host=args.host)
+    elif args.watch:
         def print_update(data):
             print(json.dumps(data, indent=2))
         
