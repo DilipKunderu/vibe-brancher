@@ -9,6 +9,8 @@ import sys
 import subprocess
 import time
 import random
+import threading
+import signal
 from pathlib import Path
 from typing import Dict, List
 import json
@@ -29,7 +31,10 @@ class EnhancedDemo:
     def __init__(self):
         self.demo_dir = "/Users/dilipkunderu/hackday/PoorlyWrittenService"
         self.vibe_brancher_path = os.path.join(os.path.dirname(__file__), "vibe_brancher.py")
+        self.visualizer_api_path = os.path.join(os.path.dirname(__file__), "visualizer_api.py")
         self.current_scenario = 0
+        self.visualizer_process = None
+        self.created_branches = []
         
     def print_header(self, text: str):
         """Print a styled header"""
@@ -78,6 +83,65 @@ class EnhancedDemo:
         command = f"python3 {self.vibe_brancher_path} {args}"
         return self.run_command(command, capture)
     
+    def start_visualizer_api(self):
+        """Start the visualizer API in watch mode"""
+        try:
+            self.print_step("Starting visualizer API...", "🌐")
+            self.visualizer_process = subprocess.Popen(
+                ['python3', self.visualizer_api_path, '--watch'],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            time.sleep(1)  # Give it time to start
+            self.print_success("Visualizer API started! (Running in background)")
+        except Exception as e:
+            self.print_warning(f"Could not start visualizer API: {e}")
+    
+    def stop_visualizer_api(self):
+        """Stop the visualizer API"""
+        if self.visualizer_process:
+            try:
+                self.visualizer_process.terminate()
+                self.visualizer_process.wait(timeout=5)
+                self.print_success("Visualizer API stopped")
+            except:
+                self.visualizer_process.kill()
+                self.print_warning("Visualizer API force-stopped")
+    
+    def create_persistent_branch(self, branch_name: str, from_branch: str = None) -> bool:
+        """Create a persistent branch that will remain after demo"""
+        try:
+            if from_branch:
+                # Switch to the source branch first
+                self.run_command(f"git checkout {from_branch}")
+            
+            # Create and switch to new branch
+            self.run_command(f"git checkout -b {branch_name}")
+            self.created_branches.append(branch_name)
+            self.print_success(f"Created persistent branch: {branch_name}")
+            return True
+        except Exception as e:
+            self.print_warning(f"Failed to create branch {branch_name}: {e}")
+            return False
+    
+    def show_branch_tree(self):
+        """Show the current branch tree structure"""
+        try:
+            self.print_step("Current branch structure:", "🌳")
+            # Get all branches
+            branches = self.run_command("git branch -a", capture=True)
+            print(f"\n{Colors.OKBLUE}Branch Tree:{Colors.ENDC}")
+            print(branches)
+            
+            # Show branch relationships
+            if len(self.created_branches) > 1:
+                print(f"\n{Colors.OKBLUE}Created Branches:{Colors.ENDC}")
+                for i, branch in enumerate(self.created_branches):
+                    print(f"  {i+1}. {branch}")
+        except Exception as e:
+            self.print_warning(f"Could not show branch tree: {e}")
+    
     def setup_demo_environment(self):
         """Set up the demo environment"""
         self.print_header("🌿 ENHANCED GIT VIBE BRANCHER - AUTO-COMMIT DEMO")
@@ -91,6 +155,9 @@ class EnhancedDemo:
         print("• Vibe coding workflow combining analysis and auto-commit")
         print("• Real-world scenarios with your PoorlyWrittenService repository")
         print("• Branch suggestions integrated with auto-commit")
+        print("• Persistent branches that remain after the demo")
+        print("• Branch-out-of-branch scenarios")
+        print("• Live visualizer API monitoring")
         
         try:
             input(f"\n{Colors.OKGREEN}Press Enter to begin the enhanced demo...{Colors.ENDC}")
@@ -106,14 +173,24 @@ class EnhancedDemo:
         else:
             print("Repository is clean")
         
+        # Start the visualizer API
+        self.start_visualizer_api()
+        
         self.print_success("Demo environment ready!")
         time.sleep(1)
     
     def scenario_1_simple_auto_commit(self):
         """Scenario 1: Simple auto-commit with intelligent message generation"""
-        self.print_header("SCENARIO 1: Simple Auto-Commit")
+        self.print_header("SCENARIO 1: Simple Auto-Commit with Persistent Branch")
         
-        self.typewriter_effect("Let's start with a simple auto-commit. The tool will generate an intelligent commit message based on the changes.")
+        self.typewriter_effect("Let's start with a simple auto-commit. We'll create a persistent branch and the tool will generate an intelligent commit message based on the changes.")
+        
+        # Create a persistent branch for this scenario
+        self.print_step("Creating a persistent feature branch...", "🌿")
+        if self.create_persistent_branch("feature/utility-functions"):
+            self.print_success("Created persistent branch: feature/utility-functions")
+        else:
+            self.print_warning("Could not create branch, continuing on current branch")
         
         # Create a simple change
         self.print_step("Creating a simple JavaScript file...", "📝")
@@ -149,9 +226,16 @@ module.exports = { formatDate, validateEmail };
     
     def scenario_2_interactive_commit(self):
         """Scenario 2: Interactive commit mode"""
-        self.print_header("SCENARIO 2: Interactive Auto-Commit")
+        self.print_header("SCENARIO 2: Interactive Auto-Commit with Persistent Branch")
         
-        self.typewriter_effect("Now let's try the interactive mode, which shows you exactly what will be committed before proceeding.")
+        self.typewriter_effect("Now let's try the interactive mode. We'll create another persistent branch and you'll see exactly what will be committed before proceeding.")
+        
+        # Create a persistent branch for this scenario
+        self.print_step("Creating a persistent branch for documentation...", "🌿")
+        if self.create_persistent_branch("feature/documentation"):
+            self.print_success("Created persistent branch: feature/documentation")
+        else:
+            self.print_warning("Could not create branch, continuing on current branch")
         
         # Create multiple files
         self.print_step("Creating multiple documentation files...", "📚")
@@ -423,9 +507,94 @@ public class NotificationController {
             print(f"\n{Colors.OKGREEN}Continuing automatically...{Colors.ENDC}")
             time.sleep(1)
     
-    def scenario_4_custom_commit_messages(self):
-        """Scenario 4: Custom commit messages"""
-        self.print_header("SCENARIO 4: Custom Commit Messages")
+    def scenario_4_branch_out_of_branch(self):
+        """Scenario 4: Branch out of branch - creating a branch from another feature branch"""
+        self.print_header("SCENARIO 4: Branch Out of Branch")
+        
+        self.typewriter_effect("Now let's demonstrate creating a branch from another feature branch - a common workflow when you need to work on a sub-feature!")
+        
+        # Show current branch structure
+        self.show_branch_tree()
+        
+        # Create a branch from the utility-functions branch
+        self.print_step("Creating a branch from feature/utility-functions...", "🌿")
+        if self.create_persistent_branch("feature/utility-functions/validation", "feature/utility-functions"):
+            self.print_success("Created branch: feature/utility-functions/validation (from feature/utility-functions)")
+        else:
+            self.print_warning("Could not create branch from feature/utility-functions, creating from current branch")
+            self.create_persistent_branch("feature/utility-functions/validation")
+        
+        # Create validation-specific changes
+        self.print_step("Adding validation utilities...", "🔍")
+        validation_code = '''// Validation utilities
+function validateEmail(email) {
+    const regex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
+    return regex.test(email);
+}
+
+function validatePhone(phone) {
+    const regex = /^\\+?[1-9]\\d{1,14}$/;
+    return regex.test(phone);
+}
+
+function validatePassword(password) {
+    return password.length >= 8 && /[A-Z]/.test(password) && /[0-9]/.test(password);
+}
+
+module.exports = { validateEmail, validatePhone, validatePassword };
+'''
+        
+        with open(f"{self.demo_dir}/validation.js", "w") as f:
+            f.write(validation_code)
+        
+        # Create tests for validation
+        test_code = '''// Tests for validation utilities
+const { validateEmail, validatePhone, validatePassword } = require('./validation');
+
+console.log('Testing validation utilities...');
+
+// Test email validation
+console.log('Email tests:');
+console.log('Valid email:', validateEmail('test@example.com')); // true
+console.log('Invalid email:', validateEmail('invalid-email')); // false
+
+// Test phone validation
+console.log('Phone tests:');
+console.log('Valid phone:', validatePhone('+1234567890')); // true
+console.log('Invalid phone:', validatePhone('123')); // false
+
+// Test password validation
+console.log('Password tests:');
+console.log('Valid password:', validatePassword('MyPass123')); // true
+console.log('Invalid password:', validatePassword('weak')); // false
+'''
+        
+        with open(f"{self.demo_dir}/validation.test.js", "w") as f:
+            f.write(test_code)
+        
+        # Run vibe-commit to analyze and commit
+        self.print_step("Running vibe-commit on the sub-branch...", "🤖")
+        time.sleep(1)
+        output = self.run_vibe_brancher("--vibe-commit", capture=True)
+        print(f"\n{Colors.OKBLUE}Vibe-Commit Output:{Colors.ENDC}")
+        print(output)
+        
+        # Show updated branch structure
+        self.print_step("Updated branch structure:", "🌳")
+        self.show_branch_tree()
+        
+        self.print_success("Perfect! We created a sub-branch from a feature branch and committed validation utilities!")
+        self.print_success("This demonstrates the branch-out-of-branch workflow for complex feature development!")
+        
+        try:
+            input(f"\n{Colors.OKGREEN}Press Enter to continue to the next scenario...{Colors.ENDC}")
+        except EOFError:
+            print(f"\n{Colors.OKGREEN}Continuing automatically...{Colors.ENDC}")
+            time.sleep(1)
+    
+    def scenario_5_custom_commit_messages(self):
+        """Scenario 5: Custom commit messages"""
+        self.print_header("SCENARIO 5: Custom Commit Messages")
         
         self.typewriter_effect("Sometimes you want to override the auto-generated message with your own custom message.")
         
@@ -471,9 +640,9 @@ public class NotificationController {
             print(f"\n{Colors.OKGREEN}Continuing automatically...{Colors.ENDC}")
             time.sleep(1)
     
-    def scenario_5_git_aliases_demo(self):
-        """Scenario 5: Git aliases demonstration"""
-        self.print_header("SCENARIO 5: Git Aliases in Action")
+    def scenario_6_git_aliases_demo(self):
+        """Scenario 6: Git aliases demonstration"""
+        self.print_header("SCENARIO 6: Git Aliases in Action")
         
         self.typewriter_effect("Let's see how the git aliases make the workflow even smoother!")
         
@@ -522,9 +691,9 @@ module.exports = { testFunction };
             print(f"\n{Colors.OKGREEN}Continuing automatically...{Colors.ENDC}")
             time.sleep(1)
     
-    def scenario_6_commit_history_showcase(self):
-        """Scenario 6: Commit history showcase"""
-        self.print_header("SCENARIO 6: Clean Commit History Showcase")
+    def scenario_7_commit_history_showcase(self):
+        """Scenario 7: Commit history showcase"""
+        self.print_header("SCENARIO 7: Clean Commit History Showcase")
         
         self.typewriter_effect("Let's see the beautiful commit history we've created with intelligent messages!")
         
@@ -601,12 +770,22 @@ module.exports = { testFunction };
             print(f"{Colors.OKBLUE}{step}{Colors.ENDC}")
             time.sleep(0.3)
         
+        print(f"\n{Colors.BOLD}Persistent Branches Created:{Colors.ENDC}")
+        if self.created_branches:
+            for branch in self.created_branches:
+                print(f"{Colors.OKGREEN}🌿 {branch}{Colors.ENDC}")
+                time.sleep(0.2)
+            print(f"\n{Colors.OKBLUE}These branches will remain in your repository after the demo!{Colors.ENDC}")
+        else:
+            print(f"{Colors.WARNING}No persistent branches were created during this demo.{Colors.ENDC}")
+        
         print(f"\n{Colors.BOLD}Next Steps:{Colors.ENDC}")
         next_steps = [
             "🔧 Customize commit message templates in config",
             "👥 Share the enhanced workflow with your team",
             "🔄 Integrate into your daily coding routine",
-            "📈 Monitor and adjust thresholds as needed"
+            "📈 Monitor and adjust thresholds as needed",
+            "🌐 Use the visualizer API for live branch monitoring"
         ]
         
         for step in next_steps:
@@ -614,7 +793,7 @@ module.exports = { testFunction };
             time.sleep(0.3)
         
         print(f"\n{Colors.HEADER}{Colors.BOLD}Thank you for experiencing the Enhanced Git Vibe Brancher!{Colors.ENDC}")
-        print(f"{Colors.OKGREEN}Happy vibe coding with auto-commits! 🌿{Colors.ENDC}")
+        print(f"{Colors.OKGREEN}Happy vibe coding with auto-commits and persistent branches! 🌿{Colors.ENDC}")
     
     def run_demo(self):
         """Run the complete enhanced demo"""
@@ -623,14 +802,18 @@ module.exports = { testFunction };
             self.scenario_1_simple_auto_commit()
             self.scenario_2_interactive_commit()
             self.scenario_3_vibe_commit_workflow()
-            self.scenario_4_custom_commit_messages()
-            self.scenario_5_git_aliases_demo()
-            self.scenario_6_commit_history_showcase()
+            self.scenario_4_branch_out_of_branch()
+            self.scenario_5_custom_commit_messages()
+            self.scenario_6_git_aliases_demo()
+            self.scenario_7_commit_history_showcase()
             self.final_summary()
         except KeyboardInterrupt:
             print(f"\n{Colors.WARNING}Demo interrupted by user{Colors.ENDC}")
         except Exception as e:
             print(f"\n{Colors.FAIL}Demo error: {e}{Colors.ENDC}")
+        finally:
+            # Cleanup: Stop visualizer API
+            self.stop_visualizer_api()
 
 def main():
     """Main function to run the enhanced demo"""
