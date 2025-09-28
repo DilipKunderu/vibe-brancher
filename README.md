@@ -128,60 +128,43 @@ If the final score is ≥ 0.6, the tool recommends creating a new branch.
 💡 Suggested branch name: feature/user-authentication
 ```
 
-## Demo & Examples
+## 🎮 Unified Demo System
 
-### Immersive Demo
-Experience the full power of Git Vibe Brancher with our comprehensive demo:
-
-```bash
-# Run the immersive demo (5-10 minutes)
-./run_demo.sh
-
-# Or run the Python demo directly
-python3 immersive_demo.py
-```
-
-The immersive demo includes:
-- 6 realistic coding scenarios
-- Interactive decision-making process
-- Visual enhancements and animations
-- Custom configuration examples
-- Integration ideas and best practices
-
-### Quick Demo
-For a fast overview of key features:
+### Single Demo Script
+Experience all Git Vibe Brancher features with our unified demo system:
 
 ```bash
-python3 quick_demo.py
+# Interactive launcher with options
+./run_demo
+
+# Or run directly with different types
+python3 demo.py                    # Full demo (comprehensive)
+python3 demo.py --type quick       # Quick demo (basic features)
+python3 demo.py --type visualizer  # Visualizer API demo only
+python3 demo.py --help-demo        # Show demo help
 ```
 
-### Test Demo
-Automated test version (no user input required):
+### Demo Types
+- **Full Demo**: Comprehensive demonstration with all features
+  - Core vibe brancher analysis and branching suggestions
+  - Auto-commit functionality with intelligent messages
+  - Interactive commit mode with file preview
+  - Vibe coding workflow combining analysis and auto-commit
+  - Persistent branches that remain after the demo
+  - Branch-out-of-branch scenarios
+  - Live visualizer API monitoring
+  - Web server on port 7171
 
-```bash
-python3 test_demo.py
-```
+- **Quick Demo**: Basic features for quick overview
+  - Core vibe brancher analysis
+  - Simple auto-commit demonstration
+  - Visualizer API web server
 
-### Enhanced Demo (NEW!)
-Comprehensive demo showcasing auto-commit features:
-
-```bash
-# Full interactive enhanced demo
-./run_enhanced_demo.sh
-
-# Quick automated test
-python3 quick_enhanced_demo.py
-
-# Direct execution
-python3 enhanced_demo.py
-```
-
-### Basic Demo
-The original demo script:
-
-```bash
-./demo.sh
-```
+- **Visualizer Demo**: API and web server functionality only
+  - Web server on port 7171
+  - RESTful API endpoints
+  - Real-time git data
+  - Web interface
 
 ## Git Aliases
 
