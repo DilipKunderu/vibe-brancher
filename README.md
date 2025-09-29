@@ -4,10 +4,27 @@ Invisible git management for vibe coders. Automatically saves progress, creates 
 
 ## Installation
 
+### 1. Clone the repository
 ```bash
 git clone https://github.com/yourusername/git-vibe-brancher.git
 cd git-vibe-brancher
+```
+
+### 2. Run the installer
+```bash
+chmod +x install.sh
 ./install.sh
+```
+
+The installer will:
+- Set up git aliases (`git vibe`, `git save`, `git vibe-autosave`, etc.)
+- Create git hooks for automatic analysis
+- Add the tool to your PATH
+- Configure git templates for new repositories
+
+### 3. Verify installation
+```bash
+git vibe --help
 ```
 
 ## Quick Start
