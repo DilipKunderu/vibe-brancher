@@ -1,0 +1,146 @@
+#!/bin/bash
+# Git Vibe Brancher - Automatic Git Wrapper
+# This script intercepts git commands and adds automatic vibe analysis
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Function to run vibe analysis and auto-branch if needed
+run_vibe_analysis() {
+    local silent="$1"
+    
+    if [ "$silent" = "true" ]; then
+        python3 "$SCRIPT_DIR/vibe_brancher.py" --auto-branch --silent 2>/dev/null
+    else
+        python3 "$SCRIPT_DIR/vibe_brancher.py" --auto-branch
+    fi
+}
+
+# Function to save progress with vibe analysis
+save_progress() {
+    local message="$1"
+    local silent="$2"
+    
+    if [ "$silent" = "true" ]; then
+        python3 "$SCRIPT_DIR/vibe_brancher.py" --save --message "$message" --silent 2>/dev/null
+    else
+        python3 "$SCRIPT_DIR/vibe_brancher.py" --save --message "$message"
+    fi
+}
+
+# Main git command processing
+case "$1" in
+    "commit")
+        # Intercept commit command - treat as "save progress"
+        shift
+        message=""
+        
+        # Parse commit message if provided
+        while [[ $# -gt 0 ]]; do
+            case $1 in
+                -m|--message)
+                    message="$2"
+                    shift 2
+                    ;;
+                *)
+                    # Skip other arguments for now
+                    shift
+                    ;;
+            esac
+        done
+        
+        # Save progress with vibe analysis
+        if save_progress "$message" "false"; then
+            echo "💾 Progress saved with vibe analysis"
+        else
+            echo "❌ Failed to save progress"
+            exit 1
+        fi
+        ;;
+    
+    "save")
+        # Direct save command
+        shift
+        message="$*"
+        save_progress "$message" "false"
+        ;;
+    
+    "checkpoint")
+        # Direct checkpoint command
+        shift
+        message="$*"
+        save_progress "$message" "false"
+        ;;
+    
+    "add")
+        # Intercept add command - run vibe analysis after adding
+        git add "$@"
+        run_vibe_analysis "true"
+        ;;
+    
+    "status")
+        # Enhanced status with vibe analysis
+        run_vibe_analysis "false"
+        echo ""
+        git status "$@"
+        ;;
+    
+    "checkout")
+        # Run vibe analysis when switching branches
+        git checkout "$@"
+        if [ $? -eq 0 ]; then
+            run_vibe_analysis "false"
+        fi
+        ;;
+    
+    "merge")
+        # Run vibe analysis after merge
+        git merge "$@"
+        if [ $? -eq 0 ]; then
+            run_vibe_analysis "false"
+        fi
+        ;;
+    
+    "rebase")
+        # Run vibe analysis after rebase
+        git rebase "$@"
+        if [ $? -eq 0 ]; then
+            run_vibe_analysis "false"
+        fi
+        ;;
+    
+    "vibe")
+        # Direct vibe commands
+        shift
+        case "$1" in
+            "start-daemon")
+                echo "🤖 Starting vibe daemon..."
+                python3 "$SCRIPT_DIR/vibe_daemon.py" --monitor-interval 30 --auto-commit-interval 300
+                ;;
+            "stop-daemon")
+                echo "🛑 Stopping vibe daemon..."
+                pkill -f "vibe_daemon.py"
+                ;;
+            "save")
+                shift
+                save_progress "$*" "false"
+                ;;
+            "checkpoint")
+                shift
+                save_progress "$*" "false"
+                ;;
+            "auto-commit")
+                shift
+                save_progress "$*" "false"
+                ;;
+            *)
+                python3 "$SCRIPT_DIR/vibe_brancher.py" "$@"
+                ;;
+        esac
+        ;;
+    
+    *)
+        # Pass through all other git commands
+        git "$@"
+        ;;
+esac

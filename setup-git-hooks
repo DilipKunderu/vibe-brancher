@@ -1,0 +1,65 @@
+#!/bin/bash
+# Setup git hooks for Git Vibe Brancher
+
+set -e
+
+echo "🔧 Setting up Git Vibe Brancher hooks for current repository..."
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Check if we're in a git repository
+if ! git rev-parse --git-dir > /dev/null 2>&1; then
+    echo "❌ Error: Not in a git repository"
+    exit 1
+fi
+
+# Create hooks directory if it doesn't exist
+mkdir -p .git/hooks
+
+# Create pre-commit hook
+cat > .git/hooks/pre-commit << EOF
+#!/bin/bash
+# Git Vibe Brancher pre-commit hook
+
+echo "🔍 Running vibe analysis..."
+python3 "$SCRIPT_DIR/vibe_brancher.py" --verbose
+
+# Ask if user wants to continue with commit
+echo ""
+read -p "🤔 Continue with commit? (y/N): " -n 1 -r
+echo
+if [[ ! \$REPLY =~ ^[Yy]\$ ]]; then
+    echo "❌ Commit cancelled."
+    exit 1
+fi
+EOF
+
+chmod +x .git/hooks/pre-commit
+
+# Create post-checkout hook for branch analysis
+cat > .git/hooks/post-checkout << EOF
+#!/bin/bash
+# Git Vibe Brancher post-checkout hook
+
+# Only run on branch changes (not file checkouts)
+if [ "\$3" = "1" ]; then
+    echo "🌿 Switched to branch: \$(git branch --show-current)"
+    echo "🔍 Running vibe analysis on new branch..."
+    python3 "$SCRIPT_DIR/vibe_brancher.py"
+fi
+EOF
+
+chmod +x .git/hooks/post-checkout
+
+echo "✅ Created git hooks:"
+echo "   pre-commit  - Runs vibe analysis before commits"
+echo "   post-checkout - Runs vibe analysis when switching branches"
+echo ""
+echo "🎉 Hooks are now active for this repository!"
+echo ""
+echo "💡 To disable hooks temporarily:"
+echo "   git commit --no-verify"
+echo ""
+echo "💡 To remove hooks:"
+echo "   rm .git/hooks/pre-commit .git/hooks/post-checkout"

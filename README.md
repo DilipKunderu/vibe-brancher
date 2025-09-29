@@ -17,9 +17,26 @@ A smart tool that analyzes your coding session and suggests when to create a new
 
 ## Installation
 
+### Quick Install
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/git-vibe-brancher.git
+cd git-vibe-brancher
+
+# Run the installer
+./install.sh
+```
+
+The installer will:
+- Set up git aliases (`git vibe`, `git vibe-verbose`, etc.)
+- Create git hooks for automatic analysis
+- Optionally add to your PATH
+- Configure git templates for new repositories
+
+### Manual Install
 1. Clone or download this repository
-2. Make the script executable: `chmod +x vibe_brancher.py`
-3. Optionally, add to your PATH for global access
+2. Make scripts executable: `chmod +x vibe_brancher.py git-vibe`
+3. Add to PATH or use full path to scripts
 
 ## Usage
 
@@ -41,21 +58,6 @@ A smart tool that analyzes your coding session and suggests when to create a new
 ### Custom Branch Name
 ```bash
 ./vibe_brancher.py --create --name "feature/my-awesome-feature"
-```
-
-### Auto-Commit Changes (NEW!)
-```bash
-# Auto-commit with intelligent message generation
-./vibe_brancher.py --commit
-
-# Interactive auto-commit (shows files and asks for confirmation)
-./vibe_brancher.py --commit --interactive
-
-# Vibe coding commit (analyze + suggest branching + auto-commit)
-./vibe_brancher.py --vibe-commit
-
-# Custom commit message
-./vibe_brancher.py --commit --message "Your custom message"
 ```
 
 ### Custom Configuration
@@ -87,14 +89,6 @@ Different file types have different complexity weights:
 - Source code files (.py, .js, .java, etc.): Higher weights (0.8-1.0)
 - Configuration files (.json, .yml): Medium weights (0.2-0.4)
 - Documentation (.md, .txt): Lower weights (0.1)
-
-### Auto-Commit Settings (NEW!)
-Control automatic commit behavior:
-- `enabled`: Enable/disable auto-commit functionality
-- `interactive_by_default`: Use interactive mode by default
-- `commit_message_templates`: Customize commit message formats
-- `include_statistics`: Include line count statistics in messages
-- `max_files_display`: Maximum files to show in interactive mode
 
 ## How It Works
 
@@ -128,67 +122,47 @@ If the final score is ≥ 0.6, the tool recommends creating a new branch.
 💡 Suggested branch name: feature/user-authentication
 ```
 
-## 🎮 Unified Demo System
+## Git Integration
 
-### Single Demo Script
-Experience all Git Vibe Brancher features with our unified demo system:
-
+### Git Aliases (Auto-configured by installer)
 ```bash
-# Interactive launcher with options
-./run_demo
-
-# Or run directly with different types
-python3 demo.py                    # Full demo (comprehensive)
-python3 demo.py --type quick       # Quick demo (basic features)
-python3 demo.py --type visualizer  # Visualizer API demo only
-python3 demo.py --help-demo        # Show demo help
+git vibe                    # Quick analysis
+git vibe-verbose           # Detailed analysis  
+git vibe-create            # Auto-create branch if recommended
+git vibe-check             # Same as vibe-verbose
+git vibe-status            # Analysis + git status
+git vibe-diff              # Analysis + git diff stats
 ```
 
-### Demo Types
-- **Full Demo**: Comprehensive demonstration with all features
-  - Core vibe brancher analysis and branching suggestions
-  - Auto-commit functionality with intelligent messages
-  - Interactive commit mode with file preview
-  - Vibe coding workflow combining analysis and auto-commit
-  - Persistent branches that remain after the demo
-  - Branch-out-of-branch scenarios
-  - Live visualizer API monitoring
-  - Web server on port 7171
+### Git Hooks
+The installer sets up git hooks for automatic analysis:
 
-- **Quick Demo**: Basic features for quick overview
-  - Core vibe brancher analysis
-  - Simple auto-commit demonstration
-  - Visualizer API web server
-
-- **Visualizer Demo**: API and web server functionality only
-  - Web server on port 7171
-  - RESTful API endpoints
-  - Real-time git data
-  - Web interface
-
-## Git Aliases
-
-Set up convenient git aliases for easy access:
-
+**Pre-commit Hook**: Runs vibe analysis before each commit
 ```bash
-# Analysis aliases
-git config --global alias.vibe '!python3 /path/to/vibe_brancher.py'
-git config --global alias.vibe-verbose '!python3 /path/to/vibe_brancher.py --verbose'
-git config --global alias.vibe-create '!python3 /path/to/vibe_brancher.py --create'
+# Enable for current repository
+./setup-git-hooks
 
-# Auto-commit aliases (NEW!)
-git config --global alias.auto-commit '!python3 /path/to/vibe_brancher.py --commit'
-git config --global alias.vibe-commit '!python3 /path/to/vibe_brancher.py --vibe-commit'
-git config --global alias.vibe-commit-interactive '!python3 /path/to/vibe_brancher.py --vibe-commit --interactive'
+# Or manually copy the hook
+cp ~/.git-templates/hooks/pre-commit-vibe .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
 ```
 
-## Integration Ideas
+**Post-checkout Hook**: Runs analysis when switching branches
 
-- Add to your shell prompt to show branch recommendations
-- Use in pre-commit hooks
-- Integrate with your IDE or editor
-- Use auto-commit for frequent commits during vibe coding
-- Set up as a git alias: `git config --global alias.vibe '!./path/to/vibe_brancher.py'`
+### Shell Integration
+For enhanced workflow, add to your shell profile:
+```bash
+# Add to ~/.bashrc, ~/.zshrc, etc.
+source /path/to/git-vibe-brancher/shell-integration.sh
+```
+
+This provides additional commands:
+```bash
+vibe_commit [args]         # Commit with vibe analysis
+vibe_branch [name]         # Create branch with vibe analysis  
+vibe_status                # Vibe analysis + git status
+vibe_diff                  # Vibe analysis + git diff stats
+```
 
 ## Requirements
 

@@ -2,12 +2,11 @@
 """
 Git Vibe Brancher - A tool that decides when to create git branches during vibe coding.
 
-This tool analyzes various factors to suggest when you should create a new branch:
+Analyzes your changes and suggests when to create a new branch based on:
 - Number of files changed
-- Lines of code added/removed
+- Lines of code added/removed  
 - Time since last commit
 - Complexity of changes
-- File types being modified
 """
 
 import os
@@ -44,38 +43,15 @@ class GitVibeBrancher:
                 "file_types": 0.1
             },
             "file_type_weights": {
-                ".py": 1.0,
-                ".js": 0.8,
-                ".ts": 0.9,
-                ".java": 1.0,
-                ".cpp": 1.0,
-                ".c": 1.0,
-                ".go": 1.0,
-                ".rs": 1.0,
-                ".html": 0.3,
-                ".css": 0.3,
-                ".json": 0.2,
-                ".md": 0.1,
-                ".txt": 0.1
+                ".py": 1.0, ".js": 0.8, ".ts": 0.9, ".java": 1.0,
+                ".cpp": 1.0, ".c": 1.0, ".go": 1.0, ".rs": 1.0,
+                ".html": 0.3, ".css": 0.3, ".json": 0.2,
+                ".md": 0.1, ".txt": 0.1
             },
             "branch_naming": {
                 "prefix": "feature",
                 "separator": "/",
                 "include_timestamp": False
-            },
-            "auto_commit": {
-                "enabled": True,
-                "interactive_by_default": False,
-                "commit_message_templates": {
-                    "feat": "feat: {description}",
-                    "fix": "fix: {description}",
-                    "docs": "docs: {description}",
-                    "config": "config: {description}",
-                    "script": "script: {description}",
-                    "update": "update: {description}"
-                },
-                "include_statistics": True,
-                "max_files_display": 5
             }
         }
         
@@ -327,175 +303,222 @@ class GitVibeBrancher:
         
         return branch_name
     
-    def create_branch(self, branch_name: str) -> bool:
+    def create_branch(self, branch_name: str, silent: bool = False) -> bool:
         """Create a new git branch."""
         try:
             # Check if branch already exists
             existing_branches = self._run_git_command(['branch', '--list', branch_name])
             if existing_branches:
-                print(f"Branch '{branch_name}' already exists!")
+                if not silent:
+                    print(f"Branch '{branch_name}' already exists!")
                 return False
             
             # Create and checkout new branch
             self._run_git_command(['checkout', '-b', branch_name])
-            print(f"✅ Created and switched to branch: {branch_name}")
+            if not silent:
+                print(f"✅ Created and switched to branch: {branch_name}")
             return True
         except RuntimeError as e:
-            print(f"❌ Failed to create branch: {e}")
+            if not silent:
+                print(f"❌ Failed to create branch: {e}")
             return False
     
-    def _generate_commit_message(self, files: Dict, diff_stats: Dict) -> str:
-        """Generate an intelligent commit message based on the changes."""
-        total_files = len(files['modified']) + len(files['added']) + len(files['untracked'])
-        total_insertions = diff_stats['staged']['insertions'] + diff_stats['unstaged']['insertions']
-        total_deletions = diff_stats['staged']['deletions'] + diff_stats['unstaged']['deletions']
+    def auto_branch_if_needed(self, silent: bool = False) -> bool:
+        """Automatically create a branch if analysis suggests it."""
+        analysis = self.analyze_branch_need()
         
-        # Analyze file types to determine the nature of changes
-        all_files = files['modified'] + files['added'] + files['untracked']
-        file_types = {}
-        for filename in all_files:
-            ext = Path(filename).suffix.lower()
-            file_types[ext] = file_types.get(ext, 0) + 1
+        if analysis['should_branch']:
+            branch_name = self.suggest_branch_name(analysis)
+            return self.create_branch(branch_name, silent=silent)
         
-        # Determine the type of change
-        if file_types.get('.py', 0) > 0 or file_types.get('.java', 0) > 0 or file_types.get('.js', 0) > 0:
-            change_type = "feat"
-        elif file_types.get('.md', 0) > 0 or file_types.get('.txt', 0) > 0:
-            change_type = "docs"
-        elif file_types.get('.json', 0) > 0 or file_types.get('.yml', 0) > 0 or file_types.get('.yaml', 0) > 0:
-            change_type = "config"
-        elif file_types.get('.sh', 0) > 0 or file_types.get('.bat', 0) > 0:
-            change_type = "script"
-        else:
-            change_type = "update"
-        
-        # Generate descriptive message using config templates
-        templates = self.config.get('auto_commit', {}).get('commit_message_templates', {})
-        template = templates.get(change_type, f"{change_type}: {{description}}")
-        
-        if total_files == 1:
-            main_file = all_files[0]
-            file_name = Path(main_file).stem
-            if change_type == "feat":
-                description = f"add {file_name} functionality"
-            elif change_type == "docs":
-                description = f"update {file_name} documentation"
-            elif change_type == "config":
-                description = f"update {file_name} configuration"
-            else:
-                description = f"update {file_name}"
-        else:
-            if change_type == "feat":
-                description = f"add {total_files} files with new functionality"
-            elif change_type == "docs":
-                description = f"update {total_files} documentation files"
-            elif change_type == "config":
-                description = f"update {total_files} configuration files"
-            else:
-                description = f"update {total_files} files"
-        
-        message = template.format(description=description)
-        
-        # Add statistics if enabled
-        if self.config.get('auto_commit', {}).get('include_statistics', True):
-            if total_insertions > 0 or total_deletions > 0:
-                if total_deletions == 0:
-                    message += f" (+{total_insertions} lines)"
-                elif total_insertions == 0:
-                    message += f" (-{total_deletions} lines)"
-                else:
-                    message += f" (+{total_insertions}, -{total_deletions} lines)"
-        
-        return message
+        return False
     
-    def auto_commit(self, message: Optional[str] = None, interactive: bool = False) -> bool:
-        """Automatically commit current changes with intelligent message generation."""
+    def save_progress(self, description: str = None, silent: bool = False) -> bool:
+        """Save current progress with intelligent branching."""
         try:
+            # First check if we should branch
+            if self.auto_branch_if_needed(silent=silent):
+                if not silent:
+                    print("🌿 Auto-created branch for significant changes")
+            
             # Get current status
             files = self._get_git_status()
             diff_stats = self._get_diff_stats()
             
-            # Check if there are any changes to commit
+            # Check if there are any changes to save
             total_files = len(files['modified']) + len(files['added']) + len(files['untracked'])
             if total_files == 0:
-                print("📝 No changes to commit.")
+                if not silent:
+                    print("💾 No changes to save.")
                 return True
             
-            # Generate commit message if not provided
-            if not message:
-                message = self._generate_commit_message(files, diff_stats)
-            
-            # Show what will be committed
-            print(f"📝 Preparing to commit {total_files} files...")
-            print(f"💬 Commit message: {message}")
-            
-            if interactive:
-                # Show file changes
-                max_files = self.config.get('auto_commit', {}).get('max_files_display', 5)
-                print("\n📁 Files to be committed:")
-                if files['modified']:
-                    print(f"  • Modified: {len(files['modified'])} files")
-                    for f in files['modified'][:max_files]:
-                        print(f"    - {f}")
-                    if len(files['modified']) > max_files:
-                        print(f"    ... and {len(files['modified']) - max_files} more")
-                
-                if files['added']:
-                    print(f"  • Added: {len(files['added'])} files")
-                    for f in files['added'][:max_files]:
-                        print(f"    - {f}")
-                    if len(files['added']) > max_files:
-                        print(f"    ... and {len(files['added']) - max_files} more")
-                
-                if files['untracked']:
-                    print(f"  • Untracked: {len(files['untracked'])} files")
-                    for f in files['untracked'][:max_files]:
-                        print(f"    - {f}")
-                    if len(files['untracked']) > max_files:
-                        print(f"    ... and {len(files['untracked']) - max_files} more")
-                
-                # Ask for confirmation
-                response = input(f"\n🤔 Proceed with commit? (y/N): ").strip().lower()
-                if response not in ['y', 'yes']:
-                    print("❌ Commit cancelled.")
-                    return False
+            # Generate save message if not provided
+            if not description:
+                description = self._generate_simple_commit_message(files, diff_stats)
             
             # Stage all changes
             self._run_git_command(['add', '.'])
             
-            # Create commit
-            self._run_git_command(['commit', '-m', message])
-            print(f"✅ Committed changes: {message}")
+            # Save progress
+            self._run_git_command(['commit', '-m', description])
+            if not silent:
+                print(f"💾 Progress saved: {description}")
             return True
             
         except RuntimeError as e:
-            print(f"❌ Failed to commit: {e}")
+            if not silent:
+                print(f"❌ Failed to save progress: {e}")
             return False
     
-    def vibe_commit(self, interactive: bool = False) -> bool:
-        """Vibe coding commit - analyze and commit with smart message."""
+    def checkpoint(self, description: str = None, silent: bool = False) -> bool:
+        """Create a checkpoint of current work."""
+        return self.save_progress(description, silent)
+    
+    def _generate_simple_commit_message(self, files: Dict, diff_stats: Dict) -> str:
+        """Generate a simple commit message based on changes."""
+        total_files = len(files['modified']) + len(files['added']) + len(files['untracked'])
+        total_insertions = diff_stats['staged']['insertions'] + diff_stats['unstaged']['insertions']
+        total_deletions = diff_stats['staged']['deletions'] + diff_stats['unstaged']['deletions']
+        
+        # Simple message based on file count
+        if total_files == 1:
+            main_file = (files['modified'] + files['added'] + files['untracked'])[0]
+            return f"update {Path(main_file).stem}"
+        else:
+            return f"update {total_files} files"
+    
+    def _get_branch_info(self, branch_name: str = None) -> Dict:
+        """Get information about a branch."""
+        if not branch_name:
+            branch_name = self._run_git_command(['branch', '--show-current'])
+        
         try:
-            # First analyze if we should branch
-            analysis = self.analyze_branch_need()
+            # Get branch creation time (first commit on branch)
+            first_commit = self._run_git_command(['log', '--oneline', '--reverse', branch_name])
+            if first_commit:
+                first_commit_hash = first_commit.split()[0]
+                timestamp_str = self._run_git_command(['log', '-1', '--format=%ct', first_commit_hash])
+                if timestamp_str:
+                    creation_time = datetime.fromtimestamp(int(timestamp_str))
+                else:
+                    creation_time = None
+            else:
+                creation_time = None
             
-            # Show analysis
-            self.show_analysis(analysis, verbose=False)
+            # Get number of commits on branch
+            commit_count = len(self._run_git_command(['log', '--oneline', branch_name]).split('\n'))
             
-            # If we should branch, suggest it
-            if analysis['should_branch']:
-                suggested_branch = self.suggest_branch_name(analysis)
-                print(f"\n🌿 Consider creating a branch: {suggested_branch}")
-                if interactive:
-                    response = input("Create branch before committing? (y/N): ").strip().lower()
-                    if response in ['y', 'yes']:
-                        self.create_branch(suggested_branch)
+            # Get last commit time
+            last_commit_time = self._get_last_commit_time()
             
-            # Proceed with commit
-            return self.auto_commit(interactive=interactive)
+            # Check if branch is up to date with main
+            try:
+                self._run_git_command(['merge-base', '--is-ancestor', 'main', branch_name])
+                is_behind_main = False
+            except RuntimeError:
+                is_behind_main = True
             
-        except RuntimeError as e:
-            print(f"❌ Failed to vibe commit: {e}")
-            return False
+            return {
+                'name': branch_name,
+                'creation_time': creation_time,
+                'last_commit_time': last_commit_time,
+                'commit_count': commit_count,
+                'is_behind_main': is_behind_main
+            }
+        except RuntimeError:
+            return {
+                'name': branch_name,
+                'creation_time': None,
+                'last_commit_time': None,
+                'commit_count': 0,
+                'is_behind_main': True
+            }
+    
+    def analyze_branch_convergence(self, branch_name: str = None) -> Dict:
+        """Analyze if a branch is ready to be merged back to main."""
+        branch_info = self._get_branch_info(branch_name)
+        
+        if not branch_info['name'] or branch_info['name'] == 'main':
+            return {'should_merge': False, 'reason': 'Not on a feature branch'}
+        
+        convergence_score = 0.0
+        reasons = []
+        
+        # Time-based factors
+        if branch_info['creation_time']:
+            age_hours = (datetime.now() - branch_info['creation_time']).total_seconds() / 3600
+            
+            # Older branches are more likely to be ready
+            if age_hours > 24:  # More than 1 day
+                convergence_score += 0.3
+                reasons.append(f"Branch is {age_hours:.1f} hours old")
+            elif age_hours > 168:  # More than 1 week
+                convergence_score += 0.5
+                reasons.append(f"Branch is {age_hours/24:.1f} days old - consider merging")
+        
+        # Commit count factors
+        commit_count = branch_info['commit_count']
+        if commit_count >= 5:
+            convergence_score += 0.2
+            reasons.append(f"Has {commit_count} commits - substantial work")
+        elif commit_count >= 10:
+            convergence_score += 0.3
+            reasons.append(f"Has {commit_count} commits - significant feature")
+        
+        # Stability factors (no recent commits)
+        if branch_info['last_commit_time']:
+            time_since_last = datetime.now() - branch_info['last_commit_time']
+            hours_since_last = time_since_last.total_seconds() / 3600
+            
+            if hours_since_last > 2:  # No commits for 2+ hours
+                convergence_score += 0.2
+                reasons.append(f"No commits for {hours_since_last:.1f} hours - appears stable")
+            elif hours_since_last > 24:  # No commits for 1+ day
+                convergence_score += 0.4
+                reasons.append(f"No commits for {hours_since_last/24:.1f} days - likely complete")
+        
+        # Check if branch is behind main (needs updating)
+        if branch_info['is_behind_main']:
+            convergence_score -= 0.2
+            reasons.append("Branch is behind main - needs updating before merge")
+        
+        # Check current changes (if any)
+        current_files = self._get_git_status()
+        total_current_files = len(current_files['modified']) + len(current_files['added']) + len(current_files['untracked'])
+        
+        if total_current_files == 0:
+            convergence_score += 0.3
+            reasons.append("No uncommitted changes - clean state")
+        else:
+            convergence_score -= 0.1
+            reasons.append(f"Has {total_current_files} uncommitted changes")
+        
+        should_merge = convergence_score >= 0.6
+        
+        return {
+            'should_merge': should_merge,
+            'convergence_score': convergence_score,
+            'reasons': reasons,
+            'branch_info': branch_info
+        }
+    
+    def suggest_merge_strategy(self, branch_name: str = None) -> str:
+        """Suggest merge strategy for a branch."""
+        convergence = self.analyze_branch_convergence(branch_name)
+        
+        if not convergence['should_merge']:
+            return "Branch not ready for merge"
+        
+        branch_info = convergence['branch_info']
+        
+        # Suggest merge strategy based on branch characteristics
+        if branch_info['commit_count'] <= 3:
+            return "squash merge (few commits, clean history)"
+        elif branch_info['is_behind_main']:
+            return "rebase then merge (update branch first)"
+        else:
+            return "merge commit (preserve branch history)"
+    
     
     def show_analysis(self, analysis: Dict, verbose: bool = False):
         """Display the analysis results."""
@@ -532,37 +555,83 @@ class GitVibeBrancher:
         if analysis['should_branch']:
             suggested_name = self.suggest_branch_name(analysis)
             print(f"\n💡 Suggested branch name: {suggested_name}")
+    
+    def show_convergence_analysis(self, branch_name: str = None, verbose: bool = False):
+        """Display branch convergence analysis."""
+        convergence = self.analyze_branch_convergence(branch_name)
+        
+        print("🔄 Branch Convergence Analysis")
+        print("=" * 40)
+        
+        if convergence['should_merge']:
+            print("✅ RECOMMENDATION: Branch is ready to merge!")
+            print(f"📊 Convergence Score: {convergence['convergence_score']:.2f}/1.0")
+        else:
+            print("⏳ RECOMMENDATION: Continue working on branch")
+            print(f"📊 Convergence Score: {convergence['convergence_score']:.2f}/1.0")
+        
+        if verbose:
+            print("\n📈 Detailed Analysis:")
+            branch_info = convergence['branch_info']
+            print(f"  • Branch: {branch_info['name']}")
+            print(f"  • Commits: {branch_info['commit_count']}")
+            
+            if branch_info['creation_time']:
+                age_hours = (datetime.now() - branch_info['creation_time']).total_seconds() / 3600
+                print(f"  • Age: {age_hours:.1f} hours")
+            
+            if branch_info['last_commit_time']:
+                time_since_last = datetime.now() - branch_info['last_commit_time']
+                hours_since_last = time_since_last.total_seconds() / 3600
+                print(f"  • Last commit: {hours_since_last:.1f} hours ago")
+            
+            print(f"  • Behind main: {'Yes' if branch_info['is_behind_main'] else 'No'}")
+            
+            print("\n📋 Reasons:")
+            for reason in convergence['reasons']:
+                print(f"  • {reason}")
+        
+        if convergence['should_merge']:
+            strategy = self.suggest_merge_strategy(branch_name)
+            print(f"\n💡 Suggested merge strategy: {strategy}")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Git Vibe Brancher - Decide when to create branches and auto-commit changes")
+    parser = argparse.ArgumentParser(description="Git Vibe Brancher - Automatic git operations for vibe coding")
     parser.add_argument('--create', action='store_true', help='Automatically create branch if recommended')
     parser.add_argument('--verbose', '-v', action='store_true', help='Show detailed analysis')
     parser.add_argument('--config', help='Path to configuration file')
     parser.add_argument('--name', help='Custom branch name (overrides suggestion)')
     
-    # New auto-commit options
-    parser.add_argument('--commit', action='store_true', help='Auto-commit current changes with intelligent message')
-    parser.add_argument('--vibe-commit', action='store_true', help='Vibe coding commit - analyze, suggest branching, and commit')
-    parser.add_argument('--interactive', '-i', action='store_true', help='Interactive mode for commits (ask for confirmation)')
-    parser.add_argument('--message', '-m', help='Custom commit message (overrides auto-generation)')
+    # New automatic operation options
+    parser.add_argument('--auto-branch', action='store_true', help='Automatically create branch if needed (silent)')
+    parser.add_argument('--save', action='store_true', help='Save current progress with intelligent branching')
+    parser.add_argument('--checkpoint', action='store_true', help='Create a checkpoint of current work')
+    parser.add_argument('--auto-commit', action='store_true', help='Legacy: use --save instead')
+    parser.add_argument('--message', '-m', help='Description for saving progress')
+    parser.add_argument('--silent', action='store_true', help='Run silently (minimal output)')
+    
+    # Branch convergence options
+    parser.add_argument('--convergence', action='store_true', help='Analyze branch convergence (merge readiness)')
+    parser.add_argument('--branch', help='Specific branch to analyze (default: current branch)')
     
     args = parser.parse_args()
     
     try:
         brancher = GitVibeBrancher(args.config)
         
-        # Handle auto-commit modes
-        if args.vibe_commit:
-            # Vibe coding commit - analyze and commit
-            success = brancher.vibe_commit(interactive=args.interactive)
+        # Handle automatic operations
+        if args.save or args.checkpoint or args.auto_commit:
+            success = brancher.save_progress(args.message, silent=args.silent)
             if not success:
                 sys.exit(1)
-        elif args.commit:
-            # Simple auto-commit
-            success = brancher.auto_commit(message=args.message, interactive=args.interactive)
-            if not success:
-                sys.exit(1)
+        elif args.auto_branch:
+            success = brancher.auto_branch_if_needed(silent=args.silent)
+            if not success and not args.silent:
+                print("No branching needed")
+        elif args.convergence:
+            # Branch convergence analysis
+            brancher.show_convergence_analysis(args.branch, args.verbose)
         else:
             # Original analysis mode
             analysis = brancher.analyze_branch_need()
@@ -575,7 +644,8 @@ def main():
                 print("\n⚠️  Branch creation not recommended based on current analysis.")
             
     except RuntimeError as e:
-        print(f"❌ Error: {e}")
+        if not args.silent:
+            print(f"❌ Error: {e}")
         sys.exit(1)
 
 
